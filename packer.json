@@ -1,0 +1,60 @@
+{
+  "variables": {
+    "commit_id": "{{env `TRAVIS_COMMIT`}}",
+    "commit_msg": "{{env `TRAVIS_COMMIT_MESSAGE`}}",
+    "custom_ami_name": "umccrise-ami",
+    "ssh_username": "ubuntu"
+  },
+  "builders": [
+    {
+      "name": "{{user `custom_ami_name`}}",
+      "type": "amazon-ebs",
+      "iam_instance_profile": "new_packer_instance_profile",
+      "region": "ap-southeast-2",
+      "source_ami": "ami-fbb66399",
+      "instance_type": "t2.medium",
+      "spot_price": "auto",
+      "spot_price_auto_product": "Linux/UNIX",
+      "ssh_username": "{{user `ssh_username`}}",
+      "ssh_timeout": "10m",
+      "ami_users": [
+        "472057503814",
+        "620123204273"
+      ],
+      "ami_name": "{{user `custom_ami_name`}} {{timestamp}}",
+      "ami_description": "{{user `custom_ami_name`}} AMI",
+      "associate_public_ip_address": true,
+      "run_tags": {
+        "ami-create": "{{user `custom_ami_name`}}"
+      },
+      "tags": {
+        "ami": "{{user `custom_ami_name`}}",
+        "Name": "{{user `custom_ami_name`}}:{{user `commit_id`}}",
+        "timestamp": "{{timestamp}}",
+        "commit": "{{user `commit_id`}}",
+        "commit_msg": "{{user `commit_msg`}}"
+      },
+      "launch_block_device_mappings": [
+      {
+        "device_name": "/dev/sda1",
+        "volume_size": 10,
+        "volume_type": "gp2",
+        "delete_on_termination": true
+      },
+      {
+        "device_name": "/dev/sdb",
+        "volume_size": 30,
+        "volume_type": "gp2",
+        "delete_on_termination": true
+      }
+     ]
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "ansible",
+      "extra_arguments": [ "--extra-vars", "ansible_python_interpreter=/usr/bin/python3"],
+      "playbook_file": "deploy/site.yml"
+    }
+ ]
+}

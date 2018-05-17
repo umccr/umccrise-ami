@@ -1,0 +1,29 @@
+language: python
+branches:
+  only:
+  - master
+env:
+  global:
+  - PACKER_VERSION="1.2.2"
+notifications:
+  email: false
+  slack:
+    rooms:
+      secure: AXezMg+pU/cWcvrtDvTQzC5C2hGS8hTseY5FakRbrEwyQjypQceqNH/QmsMVXjAkvw2h+51H/0CHjbasc1sSv5F13YL5HSaGLBeJu1hIwMrqqm6uocE12LLoLxLDohRUMM1QCgBGUblRfWYHzSQVuTefZY0gxhcJo5j9BRrxBwOUNxDA58PcXT+vYXsQaVoWPBxbH62f2V3x7Cut4t8OrcAfMsOooLPdtVRU2luR8H6Ayoy5nzAw8Blf9Lv8ZWbUdkdKyaa8hk52LVJFI8Q/bHASuZ6ld1XIc6BzdZZu++IPqxNsc+EgLlLXg20uw9z9KV2N38wvrZ2xf/oqx74wjQQYzPWY47WQYRe8E8MFbI52xeRgOgHqEKZOEQcSko9B4MQcj5gbg+OXGVUgWYhfpyPGgc8LpQB7Den59y1Wsjuol5QFHPJhRiyz+Uc7Sn53x8lRwpR6FyUu06b4qzTumO0DssPxyKRFsuGCI4Xh40yI6UDmDXxSS1V2O9XGf8mVv5smRV0h6P6OJ/t+WUzHNks3R+INnzlJlYfU4vHPNpLEASYEgYxAea1exqOAMR909VjfZWJpkCRHphAoteRbJTykJD6X2g1n5MGNNbK79hAl+ug0Uv4gkvS0pAoK1XGTdCvAjvvYq4Kdf8x5xCA59X40Lz3hYTbLQKAkDYd+Ulk=
+before_install:
+- sudo apt-get update -y --fix-missing
+install:
+- packer --version
+- curl -o /tmp/packer.zip -L "https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip"
+- sudo unzip -d /usr/local/packer-${PACKER_VERSION} /tmp/packer.zip
+- sudo ln -sf /usr/local/packer-${PACKER_VERSION}/packer /usr/local/bin/packer
+- packer --version
+- sudo apt-get install -y jq
+- pip install awscli ansible --upgrade
+- git clone https://github.com/brainstorm/umccrise && cd umccrise # XXX: for now on deploy branch, change to master/upstream when @vladsaveliev is ready
+- git checkout deploy
+- aws --version
+script:
+- "./build.sh"
+after_success:
+  - "./send-datadog-event.sh"
