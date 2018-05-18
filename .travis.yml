@@ -23,6 +23,7 @@ install:
 - git clone -b deploy https://github.com/brainstorm/umccrise # XXX: for now on deploy branch, change to master/upstream when @vladsaveliev is ready
 - aws --version
 script:
-- "./build.sh"
+- "./build.sh &"
+- travis_wait 40 sleep 3000
 after_success:
   - "./send-datadog-event.sh"
