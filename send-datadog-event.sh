@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-APP="pcgr"
+APP="umccrise"
 
 # install DataDog Python library
 pip install datadog

@@ -12,7 +12,7 @@
       "iam_instance_profile": "new_packer_instance_profile",
       "region": "ap-southeast-2",
       "source_ami": "ami-fbb66399",
-      "instance_type": "t2.medium",
+      "instance_type": "m4.large",
       "spot_price": "auto",
       "spot_price_auto_product": "Linux/UNIX",
       "ssh_username": "{{user `ssh_username`}}",
@@ -36,8 +36,8 @@
       },
       "launch_block_device_mappings": [
       {
-        "device_name": "/dev/sdb",
-        "volume_size": 30,
+        "device_name": "/dev/sda",
+        "volume_size": 25,
         "volume_type": "gp2",
         "delete_on_termination": true
       }
@@ -46,9 +46,8 @@
   ],
   "provisioners": [
     {
-      "type": "ansible",
-      "extra_arguments": [ "--extra-vars", "ansible_python_interpreter=/usr/bin/python3"],
-      "playbook_file": "umccrise/deploy/site.yml"
+      "type": "shell",
+      "script": "deploy.sh"
     }
  ]
 }
