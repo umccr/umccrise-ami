@@ -22,6 +22,6 @@ install:
     - pip install awscli ansible --upgrade
     - git clone -b deploy https://github.com/brainstorm/umccrise
 script:
-    - ./build.sh
+    - travis_wait 50 ./build.sh
 after_success:
   - "./send-datadog-event.sh"
