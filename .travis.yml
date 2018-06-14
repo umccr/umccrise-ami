@@ -20,6 +20,7 @@ install:
     - packer --version
     - sudo apt-get install -y jq
     - pip install awscli ansible --upgrade
+    - git clone -b deploy https://github.com/brainstorm/umccrise
 script:
     - ./build.sh
 after_success:
