@@ -3,7 +3,8 @@
 set -euxo pipefail
 
 AWS_DEV="/dev/xvdb"
-# XXX: AZs on volumes, try to stick to one or make sure instances and volumes are under the same? How?
+# XXX: AZs on volumes, try to stick to one or make sure instances and volumes are under the same? How to pull this off reliably
+# when this is basically a managed spot fleet under Batch? :/
 AWS_AZ="ap-southeast-2c"
 REGION="ap-southeast-2"
 AWS_INSTANCE=$(curl http://169.254.169.254/latest/meta-data/instance-id)
@@ -19,19 +20,18 @@ aws ec2 wait volume-in-use --region "$REGION" --volume-ids "$VOL_ID" --filters N
 # Make sure attached volume is removed post instance termination
 aws ec2 modify-instance-attribute --region "$REGION" --instance-id "$AWS_INSTANCE" --block-device-mappings "[{\"DeviceName\": \"$AWS_DEV\",\"Ebs\":{\"DeleteOnTermination\":true}}]"
 
-# XXX: Wait for $AWS_DEV to show up on the OS. The above aws "ec2 wait" command is not reliable:
+# Wait for $AWS_DEV to show up on the OS level. The above aws "ec2 wait" command is not reliable:
 # ERROR: mount check: cannot open /dev/xvdb: No such file or directory
-# Find a better way to do this :/
+# XXX: Find a better way to do this :/
 sleep 10
+
 # Format/mount
 sudo mkfs.btrfs -f "$AWS_DEV"
 sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | tee -a /etc/fstab
 sudo mount -a
 
-# XXX: Why not leave the agent running?
-# XXX: Need to gather/inject ECS cluster id here anyways
-#sudo stop ecs
-#sudo rm -rf /var/lib/ecs/data/ecs_agent_data.json
+# Inject current AWS Batch ECS cluster ID since it's dynamic
+aws ecs list-clusters --output text --query 'clusterArns' | awk -F "/" '{ print $2 }' > /etc/default/ecs-cluster-arn
 
 # Pull in all reference data to /mnt
 sudo time aws s3 sync s3://umccr-umccrise-refdata-dev/ /mnt
