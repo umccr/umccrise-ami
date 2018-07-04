@@ -30,6 +30,9 @@ sudo mkfs.btrfs -f "$AWS_DEV"
 sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | tee -a /etc/fstab
 sudo mount -a
 
+# Make sure ecs agent does not have stale/old info
+sudo rm -rf /var/lib/ecs/data/ecs_agent_data.json
+
 # Inject current AWS Batch ECS cluster ID since it's dynamic
 aws ecs list-clusters --output text --query 'clusterArns' | awk -F "/" '{ print $2 }' > /etc/default/ecs-cluster-arn
 
