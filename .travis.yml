@@ -19,7 +19,7 @@ install:
     - sudo ln -sf /usr/local/packer-${PACKER_VERSION}/packer /usr/local/bin/packer
     - packer --version
     - sudo apt-get install -y jq
-    - pip install awscli ansible==2.5.5 --upgrade
+    - pip install awscli ansible --upgrade
     - git clone -b deploy https://github.com/brainstorm/umccrise
 #    - git clone https://github.com/umccrise/umccrise-ami
 script:
