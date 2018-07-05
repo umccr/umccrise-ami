@@ -30,12 +30,11 @@ sudo mkfs.btrfs -f "$AWS_DEV"
 sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | tee -a /etc/fstab
 sudo mount -a
 
-# Make sure ecs agent does not have stale/old info
-sudo rm -rf /var/lib/ecs/data/ecs_agent_data.json
+# Inject current AWS Batch ECS cluster ID since it's dynamic (restart the dockerized ecs-agent)
+aws ecs list-clusters --region "$REGION" --output text --query 'clusterArns' | awk -F "/" '{ print $2 }' > /etc/default/ecs-cluster-arn
+sudo rm -rf /var/lib/ecs/data/ecs_agent_data.json # Make sure ecs agent does not have stale/old info
+sudo docker restart ecs-agent
 
-# Inject current AWS Batch ECS cluster ID since it's dynamic
-aws ecs list-clusters --output text --query 'clusterArns' | awk -F "/" '{ print $2 }' > /etc/default/ecs-cluster-arn
-
-# Pull in all reference data to /mnt
+# Pull in all reference data to /mnt and uncompress the PCGR databundle
 sudo time aws s3 sync s3://umccr-umccrise-refdata-dev/ /mnt
-#sudo time aws s3 sync s3://umccr-primary-data-dev/ /mnt
+sudo parallel 'tar xvfz {} -C `dirname {}`' ::: /mnt/Hsapiens/*/PCGR/*databundle*.tgz
