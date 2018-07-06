@@ -4,7 +4,7 @@ set -euxo pipefail
 
 AWS_DEV="/dev/xvdb"
 # XXX: AZs on volumes, try to stick to one or make sure instances and volumes are under the same? How to pull this off reliably
-# when this is basically a managed spot fleet under Batch? :/
+# XXX: Apply https://github.com/aws-samples/ecs-refarch-cloudformation insight here. 
 AWS_AZ="ap-southeast-2c"
 REGION="ap-southeast-2"
 AWS_INSTANCE=$(curl http://169.254.169.254/latest/meta-data/instance-id)
@@ -30,9 +30,9 @@ sudo mkfs.btrfs -f "$AWS_DEV"
 sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | tee -a /etc/fstab
 sudo mount -a
 
-# Inject current AWS Batch ECS cluster ID since it's dynamic (restart the dockerized ecs-agent)
+# Inject current AWS Batch ECS cluster ID since it's dynamic (then restart the dockerized ecs-agent)
 aws ecs list-clusters --region "$REGION" --output text --query 'clusterArns' | awk -F "/" '{ print $2 }' > /etc/default/ecs-cluster-arn
-sudo rm -rf /var/lib/ecs/data/ecs_agent_data.json # Make sure ecs agent does not have stale/old info
+sed -i "s/ECS_CLUSTER=default/ECS_CLUSTER=`cat ecs-cluster-arn`/" /etc/default/ecs
 sudo docker restart ecs-agent
 
 # Pull in all reference data to /mnt and uncompress the PCGR databundle
