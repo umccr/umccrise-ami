@@ -31,8 +31,8 @@ sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | tee -a /etc/fstab
 sudo mount -a
 
 # Inject current AWS Batch ECS cluster ID since it's dynamic (then restart the dockerized ecs-agent)
-aws ecs list-clusters --region "$REGION" --output text --query 'clusterArns' | awk -F "/" '{ print $2 }' > /etc/default/ecs-cluster-arn
-sed -i "s/ECS_CLUSTER=default/ECS_CLUSTER=`cat ecs-cluster-arn`/" /etc/default/ecs
+AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$REGION" --output text --query 'clusterArns' | awk -F "/" '{ print $2 }')
+sed -i "s/ECS_CLUSTER=\"default\"/ECS_CLUSTER=$AWS_CLUSTER_ARN/" /etc/default/ecs
 sudo docker restart ecs-agent
 
 # Pull in all reference data to /mnt and uncompress the PCGR databundle
