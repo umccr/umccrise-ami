@@ -2,23 +2,25 @@
 # credit where is due: https://aws.amazon.com/blogs/compute/building-high-throughput-genomic-batch-workflows-on-aws-batch-layer-part-3-of-4/
 set -euxo pipefail
 
-AWS_DEV="/dev/xvdb"
+export AWS_DEV="/dev/xvdb"
 # XXX: AZs on volumes, try to stick to one or make sure instances and volumes are under the same? How to pull this off reliably
-# XXX: Apply https://github.com/aws-samples/ecs-refarch-cloudformation insight here. 
-AWS_AZ="ap-southeast-2c"
-REGION="ap-southeast-2"
+# XXX: Apply https://github.com/aws-samples/ecs-refarch-cloudformation insight here.
+export AWS_AZ="ap-southeast-2c"
+export AWS_REGION="ap-southeast-2"
+
+# Get instance-id from inside the running instance
 AWS_INSTANCE=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
 # Create a 500GB ST1 volume and fetch its ID
-VOL_ID=$(sudo aws ec2 create-volume --region "$REGION" --availability-zone "$AWS_AZ" --encrypted --size 500 --volume-type st1 | jq -r .VolumeId)
+VOL_ID=$(sudo aws ec2 create-volume --region "$AWS_REGION" --availability-zone "$AWS_AZ" --encrypted --size 500 --volume-type st1 | jq -r .VolumeId)
 
 # Wait for the volume to become available (block) and then attach it to the instance
-aws ec2 wait volume-available --region "$REGION" --volume-ids "$VOL_ID" --filters Name=status,Values=available
-aws ec2 attach-volume --region "$REGION" --device "$AWS_DEV" --instance-id "$AWS_INSTANCE" --volume-id "$VOL_ID"
-aws ec2 wait volume-in-use --region "$REGION" --volume-ids "$VOL_ID" --filters Name=attachment.device,Values="$AWS_DEV"
+aws ec2 wait volume-available --region "$AWS_REGION" --volume-ids "$VOL_ID" --filters Name=status,Values=available
+aws ec2 attach-volume --region "$AWS_REGION" --device "$AWS_DEV" --instance-id "$AWS_INSTANCE" --volume-id "$VOL_ID"
+aws ec2 wait volume-in-use --region "$AWS_REGION" --volume-ids "$VOL_ID" --filters Name=attachment.device,Values="$AWS_DEV"
 
 # Make sure attached volume is removed post instance termination
-aws ec2 modify-instance-attribute --region "$REGION" --instance-id "$AWS_INSTANCE" --block-device-mappings "[{\"DeviceName\": \"$AWS_DEV\",\"Ebs\":{\"DeleteOnTermination\":true}}]"
+aws ec2 modify-instance-attribute --region "$AWS_REGION" --instance-id "$AWS_INSTANCE" --block-device-mappings "[{\"DeviceName\": \"$AWS_DEV\",\"Ebs\":{\"DeleteOnTermination\":true}}]"
 
 # Wait for $AWS_DEV to show up on the OS level. The above aws "ec2 wait" command is not reliable:
 # ERROR: mount check: cannot open /dev/xvdb: No such file or directory
@@ -31,7 +33,7 @@ sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | sudo tee -a /etc/fstab
 sudo mount -a
 
 # Inject current AWS Batch ECS cluster ID since it's dynamic (then restart the dockerized ecs-agent)
-AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$REGION" --output text --query 'clusterArns' | awk -F "/" '{ print $2 }')
+AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output text --query 'clusterArns' | awk -F "/" '{ print $2 }')
 sudo sed -i "s/ECS_CLUSTER=\"default\"/ECS_CLUSTER=$AWS_CLUSTER_ARN/" /etc/default/ecs
 sudo docker restart ecs-agent
 
