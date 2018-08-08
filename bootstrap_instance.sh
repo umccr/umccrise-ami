@@ -39,35 +39,6 @@ sudo mount -a
 AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output json --query 'clusterArns' | jq -r .[] | grep "$STACK" | awk -F "/" '{ print $2 }')
 sudo sed -i "s/ECS_CLUSTER=\"default\"/ECS_CLUSTER=$AWS_CLUSTER_ARN/" /etc/default/ecs
 
-# XXX: Migrate to ansible side
-# XXX: And/or wait until Amazon merges: https://github.com/aws/amazon-ecs-init/pull/180
-cat << EOF > /etc/systemd/system/docker-container@ecs-agent.service
-[Unit]
-Description=Docker Container %I
-Requires=docker.service
-After=docker.service
-
-[Service]
-Restart=always
-ExecStartPre=-/usr/bin/docker rm -f %i 
-ExecStart=/usr/bin/docker run --name %i \
---restart=on-failure:10 \
---volume=/var/run:/var/run \
---volume=/var/log/ecs/:/log \
---volume=/var/lib/ecs/data:/data \
---volume=/etc/default/ecs:/etc/ecs \
---net=host \
---env-file=/etc/default/ecs \
-amazon/amazon-ecs-agent:latest
-ExecStop=/usr/bin/docker stop %i
-
-[Install]
-WantedBy=default.target
-EOF
-
-systemctl enable docker-container@ecs-agent.service
-systemctl start docker-container@ecs-agent.service
-
 # Pull in all reference data to /mnt and uncompress the PCGR databundle
 sudo time aws s3 sync s3://umccr-umccrise-refdata-dev/ /mnt
 sudo time parallel 'tar xvfz {} -C `dirname {}`' ::: /mnt/Hsapiens/*/PCGR/*databundle*.tgz
