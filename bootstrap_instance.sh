@@ -7,7 +7,7 @@ export AWS_DEV="/dev/xvdb"
 
 # AWS instance introspection
 AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-AWS_REGION=$(echo "$EC2_AVAIL_ZONE" | sed -e 's:\([0-9][0-9]*\)[a-z]*\$:\\1:')
+AWS_REGION=$(echo "$AWS_AZ" | sed -e 's:\([0-9][0-9]*\)[a-z]*\$:\\1:')
 AWS_INSTANCE=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
 # Create a 500GB ST1 volume and fetch its ID
@@ -23,6 +23,7 @@ aws ec2 modify-instance-attribute --region "$AWS_REGION" --instance-id "$AWS_INS
 
 # Wait for $AWS_DEV to show up on the OS level. The above aws "ec2 wait" command is not reliable:
 # ERROR: mount check: cannot open /dev/xvdb: No such file or directory
+#
 # XXX: Find a better way to do this :/
 sleep 10
 
@@ -36,8 +37,7 @@ AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output json --q
 
 sudo sed -i "s/ECS_CLUSTER=\"default\"/ECS_CLUSTER=$AWS_CLUSTER_ARN/" /etc/default/ecs
 
-##XXX: Use systemd instead of this, config files do not seem to be re-read with docker restart
-sudo docker restart ecs-agent
+sudo service restart ecs-agent
 
 # Pull in all reference data to /mnt and uncompress the PCGR databundle
 sudo time aws s3 sync s3://umccr-umccrise-refdata-dev/ /mnt
