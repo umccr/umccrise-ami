@@ -2,13 +2,12 @@
 # credit where is due: https://aws.amazon.com/blogs/compute/building-high-throughput-genomic-batch-workflows-on-aws-batch-layer-part-3-of-4/
 set -euxo pipefail
 
+export STACK="umccrise"
 export AWS_DEV="/dev/xvdb"
-# XXX: AZs on volumes, try to stick to one or make sure instances and volumes are under the same? How to pull this off reliably
-# XXX: Apply https://github.com/aws-samples/ecs-refarch-cloudformation insight here.
-export AWS_AZ="ap-southeast-2c"
-export AWS_REGION="ap-southeast-2"
 
-# Get instance-id from inside the running instance
+# AWS instance introspection
+AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+AWS_REGION=$(echo "$EC2_AVAIL_ZONE" | sed -e 's:\([0-9][0-9]*\)[a-z]*\$:\\1:')
 AWS_INSTANCE=$(curl http://169.254.169.254/latest/meta-data/instance-id)
 
 # Create a 500GB ST1 volume and fetch its ID
@@ -33,10 +32,13 @@ sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | sudo tee -a /etc/fstab
 sudo mount -a
 
 # Inject current AWS Batch ECS cluster ID since it's dynamic (then restart the dockerized ecs-agent)
-AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output text --query 'clusterArns' | awk -F "/" '{ print $2 }')
+AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output json --query 'clusterArns' | jq -r .[] | grep $STACK | awk -F "/" '{ print $2 }')
+
 sudo sed -i "s/ECS_CLUSTER=\"default\"/ECS_CLUSTER=$AWS_CLUSTER_ARN/" /etc/default/ecs
+
+##XXX: Use systemd instead of this, config files do not seem to be re-read with docker restart
 sudo docker restart ecs-agent
 
 # Pull in all reference data to /mnt and uncompress the PCGR databundle
 sudo time aws s3 sync s3://umccr-umccrise-refdata-dev/ /mnt
-sudo parallel 'tar xvfz {} -C `dirname {}`' ::: /mnt/Hsapiens/*/PCGR/*databundle*.tgz
+sudo time parallel 'tar xvfz {} -C `dirname {}`' ::: /mnt/Hsapiens/*/PCGR/*databundle*.tgz
