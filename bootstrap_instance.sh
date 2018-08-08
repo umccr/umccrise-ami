@@ -6,9 +6,9 @@ export STACK="umccrise"
 export AWS_DEV="/dev/xvdb"
 
 # AWS instance introspection
-AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
-AWS_REGION=$(echo "$AWS_AZ" | sed -e 's:\([0-9][0-9]*\)[a-z]*\$:\\1:')
-AWS_INSTANCE=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+export AWS_AZ=$(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)
+export AWS_REGION=${AWS_AZ::-1}
+export AWS_INSTANCE=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
 
 # Create a 500GB ST1 volume and fetch its ID
 VOL_ID=$(sudo aws ec2 create-volume --region "$AWS_REGION" --availability-zone "$AWS_AZ" --encrypted --size 500 --volume-type st1 | jq -r .VolumeId)
@@ -32,12 +32,37 @@ sudo mkfs.btrfs -f "$AWS_DEV"
 sudo echo -e "$AWS_DEV\t/mnt\tbtrfs\tdefaults\t0\t0" | sudo tee -a /etc/fstab
 sudo mount -a
 
-# Inject current AWS Batch ECS cluster ID since it's dynamic (then restart the dockerized ecs-agent)
-AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output json --query 'clusterArns' | jq -r .[] | grep $STACK | awk -F "/" '{ print $2 }')
-
+# Inject current AWS Batch ECS cluster ID since it's dynamic
+AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output json --query 'clusterArns' | jq -r .[] | grep "$STACK" | awk -F "/" '{ print $2 }')
 sudo sed -i "s/ECS_CLUSTER=\"default\"/ECS_CLUSTER=$AWS_CLUSTER_ARN/" /etc/default/ecs
 
-sudo service restart ecs-agent
+# XXX: Migrate to ansible side
+cat << EOF > /etc/systemd/system/docker-container@ecs-agent.service
+[Unit]
+Description=Docker Container %I
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+ExecStartPre=-/usr/bin/docker rm -f %i 
+ExecStart=/usr/bin/docker run --name %i \
+--restart=on-failure:10 \
+--volume=/var/run:/var/run \
+--volume=/var/log/ecs/:/log \
+--volume=/var/lib/ecs/data:/data \
+--volume=/etc/default/ecs:/etc/ecs \
+--net=host \
+--env-file=/etc/default/ecs \
+amazon/amazon-ecs-agent:latest
+ExecStop=/usr/bin/docker stop %i
+
+[Install]
+WantedBy=default.target
+EOF
+
+systemctl enable docker-container@ecs-agent.service
+systemctl start docker-container@ecs-agent.service
 
 # Pull in all reference data to /mnt and uncompress the PCGR databundle
 sudo time aws s3 sync s3://umccr-umccrise-refdata-dev/ /mnt
