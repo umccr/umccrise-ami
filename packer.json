@@ -12,7 +12,7 @@
       "iam_instance_profile": "new_packer_instance_profile",
       "region": "ap-southeast-2",
       "source_ami": "ami-fbb66399",
-      "instance_type": "m4.large",
+      "instance_type": "m4.xlarge",
       "spot_price": "auto",
       "spot_price_auto_product": "Linux/UNIX",
       "ssh_username": "{{user `ssh_username`}}",
