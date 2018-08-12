@@ -39,6 +39,10 @@ sudo mount -a
 AWS_CLUSTER_ARN=$(aws ecs list-clusters --region "$AWS_REGION" --output json --query 'clusterArns' | jq -r .[] | grep "$STACK" | awk -F "/" '{ print $2 }')
 sudo sed -i "s/ECS_CLUSTER=\"default\"/ECS_CLUSTER=$AWS_CLUSTER_ARN/" /etc/default/ecs
 
+# Restart systemd/docker service
+
+systemctl restart docker-container@ecs-agent.service
+
 # Pull in all reference data to /mnt and uncompress the PCGR databundle
 sudo time aws s3 sync s3://umccr-umccrise-refdata-dev/ /mnt
 sudo time parallel 'tar xvfz {} -C `dirname {}`' ::: /mnt/Hsapiens/*/PCGR/*databundle*.tgz
