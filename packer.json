@@ -21,7 +21,6 @@
         "472057503814",
         "620123204273"
       ],
-      "user_data_file": "bootstrap_instance.sh",
       "ami_name": "{{user `custom_ami_name`}} {{timestamp}}",
       "ami_description": "{{user `custom_ami_name`}} AMI",
       "associate_public_ip_address": true,
