@@ -30,7 +30,6 @@ install:
     - export VAULT_TOKEN=$VAULT_TOKEN_DEV
     - vault --version
     - git clone https://github.com/umccr/umccrise
-#    - git clone -b deploy https://github.com/brainstorm/umccrise
 script:
     - travis_wait 50 ./build.sh
 after_success:
