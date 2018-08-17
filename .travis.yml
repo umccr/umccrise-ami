@@ -22,7 +22,6 @@ install:
     - pip install awscli ansible --upgrade && aws --version
     - mkdir /tmp/vault
     - wget -q https://releases.hashicorp.com/vault/"$VAULT_VERSION"/vault_"$VAULT_VERSION"_linux_amd64.zip && unzip -d /tmp/vault vault_"$VAULT_VERSION"_linux_amd64.zip
-    - ls -al /tmp/vault
     - export PATH=$PATH:/tmp/vault
     - export VAULT_ADDR=$VAULT_ADDR_DEV
     - export VAULT_TOKEN=$VAULT_TOKEN_DEV
