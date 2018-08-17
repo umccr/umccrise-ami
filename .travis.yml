@@ -28,6 +28,6 @@ install:
     - vault --version
     - git clone https://github.com/umccr/umccrise
 script:
-    - travis_wait 50 ./build.sh
+    - travis_wait 30 ./build.sh
 after_success:
   - "./send-datadog-event.sh"
